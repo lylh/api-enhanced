@@ -2,6 +2,7 @@ require("dotenv").config();
 const fs = require('fs')
 const path = require('path')
 const express = require('express')
+const axios = require('axios')
 const request = require('./util/request')
 const packageJSON = require('./package.json')
 const exec = require('child_process').exec
@@ -10,6 +11,81 @@ const { cookieToJson } = require('./util/index')
 const fileUpload = require('express-fileupload')
 const decode = require('safe-decode-uri-component')
 const logger = require('./util/logger.js')
+
+// toubiec.cn API解灰函数 - 支持音质级别自动遍历
+async function getFromToubiec(songId, requestedLevel = 'jymaster') {
+  // 音质级别优先级列表（从高到低）
+  const qualityLevels = [
+    'lossless',   // 无损音质
+    'hires',      // Hi-Res
+    'jymaster',   // 超清母带(最高音质)
+    'sky',        // 沉浸环绕声
+    'jyeffect',   // 高清环绕声
+    'exhigh',     // 极高音质
+    'standard'    // 标准音质
+  ]
+  
+  // 从请求的音质级别开始，向下遍历
+  let startIndex = qualityLevels.indexOf(requestedLevel)
+  if (startIndex === -1) {
+    startIndex = 0 // 如果请求的级别不存在，从最高级别开始
+  }
+  
+  for (let i = startIndex; i < qualityLevels.length; i++) {
+    const currentLevel = qualityLevels[i]
+    
+    try {
+      logger.info(`尝试toubiec.cn解灰 - 歌曲ID: ${songId}, 音质: ${currentLevel}`)
+      
+      const response = await axios.get(`https://api.toubiec.cn/wyapi/getMusicUrl.php`, {
+        params: {
+          id: songId,
+          level: currentLevel
+        },
+        headers: {
+          'accept': '*/*',
+          'accept-language': 'zh-CN,zh;q=0.9',
+          'priority': 'u=1, i',
+          'referer': 'https://api.toubiec.cn/wyapi/Song.html',
+          'sec-ch-ua': '"Chromium";v="140", "Not=A?Brand";v="24", "Google Chrome";v="140"',
+          'sec-ch-ua-mobile': '?0',
+          'sec-ch-ua-platform': '"Windows"',
+          'sec-fetch-dest': 'empty',
+          'sec-fetch-mode': 'cors',
+          'sec-fetch-site': 'same-origin',
+          'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36'
+        },
+        timeout: 10000
+      })
+
+      if (response.data && response.data.code === 200 && response.data.data && response.data.data.length > 0) {
+        const songData = response.data.data[0]
+        if (songData.url) {
+          logger.info(`toubiec.cn解灰成功 - 歌曲ID: ${songId}, 音质: ${currentLevel}`, songData)
+          return {
+            id: Number(songId),
+            url: songData.url,
+            br: songData.br || 999000,
+            size: songData.size || 0,
+            md5: songData.md5 || '',
+            type: songData.url.includes('.flac') ? 'flac' : 'mp3',
+            level: currentLevel,
+            freeTrialInfo: null,
+            fee: 0,
+            source: 'toubiec'
+          }
+        }
+      }
+      
+      logger.info(`toubiec.cn音质${currentLevel}无可用链接，尝试下一级别`)
+    } catch (error) {
+      logger.error(`toubiec.cn解灰失败 - 歌曲ID: ${songId}, 音质: ${currentLevel}, 错误: ${error.message}`)
+    }
+  }
+  
+  logger.error(`toubiec.cn所有音质级别都失败 - 歌曲ID: ${songId}`)
+  return null
+}
 
 /**
  * The version check result.
@@ -248,15 +324,35 @@ async function consturctServer(moduleDefs) {
         ) {
           const song = moduleResponse['body']['data'][0]
             if (song.freeTrialInfo !== null || !song.url || [1, 4].includes(song.fee)) {
-              const match = require('@unblockneteasemusic/server')
-              const source = process.env.UNBLOCK_SOURCE ? process.env.UNBLOCK_SOURCE.split(',') : ['pyncmd', 'kuwo', 'qq', 'migu', 'kugou']
-              logger.info("开始解灰", source)
-              const { url } = await match(req.query.id, source)
-              song.url = url
-              song.freeTrialInfo = 'null'
-              logger.info("解灰成功!")
+              logger.info("开始增强解灰", req.query.id, "音质级别:", req.query.level)
+              
+              // 1. 首先尝试toubiec.cn API (最高优先级)
+              const toubiecResult = await getFromToubiec(req.query.id, req.query.level)
+              if (toubiecResult && toubiecResult.url) {
+                song.url = toubiecResult.url
+                song.br = toubiecResult.br
+                song.size = toubiecResult.size
+                song.md5 = toubiecResult.md5
+                song.type = toubiecResult.type
+                song.freeTrialInfo = null
+                song.fee = 0
+                logger.info("toubiec.cn解灰成功!", req.query.id)
+              } else {
+                // 2. 如果toubiec.cn失败，尝试unblockneteasemusic
+                const match = require('@unblockneteasemusic/server')
+                const source = process.env.UNBLOCK_SOURCE ? process.env.UNBLOCK_SOURCE.split(',') : ['pyncmd', 'kuwo', 'qq', 'migu', 'kugou']
+                logger.info("使用unblockneteasemusic解灰", source)
+                const { url } = await match(req.query.id, source)
+                if (url) {
+                  song.url = url
+                  song.freeTrialInfo = 'null'
+                  logger.info("unblockneteasemusic解灰成功!")
+                } else {
+                  logger.error("所有解灰方案都失败", req.query.id)
+                }
+              }
           }
-          if (song.url.includes('kuwo')) {
+          if (song.url && song.url.includes('kuwo')) {
             const proxy = process.env.PROXY_URL;
             const useProxy = process.env.ENABLE_PROXY || 'false'
             if (useProxy === 'true' && proxy) {song.proxyUrl = proxy + song.url}
@@ -281,11 +377,26 @@ async function consturctServer(moduleDefs) {
         }
         res.status(moduleResponse.status).send(moduleResponse.body)
       } catch (/** @type {*} */ moduleResponse) {
+        // 处理普通错误对象
+        if (moduleResponse instanceof Error) {
+          logger.error(`${decode(req.originalUrl)}`, {
+            message: moduleResponse.message,
+            stack: moduleResponse.stack
+          })
+          res.status(500).send({
+            code: 500,
+            data: null,
+            msg: 'Internal Server Error',
+          })
+          return
+        }
+        
+        // 处理模块响应错误
         logger.error(`${decode(req.originalUrl)}`, {
-          status: moduleResponse.status,
-          body: moduleResponse.body,
+          status: moduleResponse?.status || 500,
+          body: moduleResponse?.body || null,
         })
-        if (!moduleResponse.body) {
+        if (!moduleResponse?.body) {
           res.status(404).send({
             code: 404,
             data: null,

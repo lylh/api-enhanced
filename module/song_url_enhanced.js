@@ -1,7 +1,5 @@
-// 歌曲链接 - v1
-// 此版本不再采用 br 作为音质区分的标准
-// 而是采用 standard, exhigh, lossless, hires, jyeffect(高清环绕声), sky(沉浸环绕声), jymaster(超清母带) 进行音质判断
-// 当unblock为true时, 会尝试使用toubiec.cn API作为最高优先级，然后使用unblockneteasemusic进行解锁
+// 增强版歌曲链接解灰 - 集成toubiec.cn API作为最高优先级音源
+// 支持toubiec.cn、qq音乐、酷狗音乐、酷我音乐、咪咕音乐等多音源解灰
 
 const axios = require('axios')
 const logger = require('../util/logger.js')
@@ -11,11 +9,11 @@ const createOption = require('../util/option.js')
 async function getFromToubiec(songId, requestedLevel = 'jymaster') {
   // 音质级别优先级列表（从高到低）
   const qualityLevels = [
-    'lossless',   // 无损音质
-    'hires',      // Hi-Res
     'jymaster',   // 超清母带(最高音质)
     'sky',        // 沉浸环绕声
     'jyeffect',   // 高清环绕声
+    'hires',      // Hi-Res
+    'lossless',   // 无损音质
     'exhigh',     // 极高音质
     'standard'    // 标准音质
   ]
@@ -65,7 +63,7 @@ async function getFromToubiec(songId, requestedLevel = 'jymaster') {
             md5: songData.md5 || '',
             type: songData.url.includes('.flac') ? 'flac' : 'mp3',
             level: currentLevel,
-            freeTrialInfo: 'null',
+            freeTrialInfo: null,
             fee: 0,
             source: 'toubiec'
           }
@@ -82,20 +80,41 @@ async function getFromToubiec(songId, requestedLevel = 'jymaster') {
   return null
 }
 
-module.exports = async (query, request) => {
-  const match = require('@unblockneteasemusic/server')
-  const source = ['pyncmd','kuwo', 'qq', 'migu', 'kugou']
-  require('dotenv').config()
-  const data = {
-    ids: '[' + query.id + ']',
-    level: query.level,
-    encodeType: 'flac',
+// 备用解灰函数 - 使用原有的unblockneteasemusic
+async function getFromUnblockNeteaseMusic(songId, source = ['pyncmd', 'kuwo', 'qq', 'migu', 'kugou']) {
+  try {
+    const match = require('@unblockneteasemusic/server')
+    const result = await match(songId, source)
+    logger.info('unblockneteasemusic解灰', songId, result)
+    
+    let url = Array.isArray(result) ? (result[0]?.url || result[0]) : (result.url || result)
+    if (url) {
+      return {
+        id: Number(songId),
+        url,
+        type: 'flac',
+        level: 'standard',
+        freeTrialInfo: null,
+        fee: 0,
+        source: 'unblockneteasemusic'
+      }
+    }
+  } catch (error) {
+    logger.error('unblockneteasemusic解灰失败', songId, error.message)
   }
+  return null
+}
+
+module.exports = async (query, request) => {
+  const songId = query.id
+  const level = query.level || 'jymaster'
+  
+  // 如果启用解灰
   if (query.unblock === 'true') {
-    logger.info('开始增强解灰', query.id, '音质级别:', query.level)
+    logger.info('开始增强解灰', songId, '音质级别:', level)
     
     // 1. 首先尝试toubiec.cn API (最高优先级)
-    const toubiecResult = await getFromToubiec(query.id, query.level)
+    const toubiecResult = await getFromToubiec(songId, level)
     if (toubiecResult) {
       return {
         status: 200,
@@ -107,43 +126,42 @@ module.exports = async (query, request) => {
       }
     }
     
-    // 2. 如果toubiec.cn失败，尝试unblockneteasemusic
-    try {
-      const result = await match(query.id, source)
-      logger.info('使用unblockneteasemusic解灰', query.id, result)
-      if (result.url && result.url.includes('kuwo')) {
+    // 2. 如果toubiec.cn失败，尝试其他音源
+    const source = query.source ? query.source.split(',') : ['pyncmd', 'kuwo', 'qq', 'migu', 'kugou']
+    const unblockResult = await getFromUnblockNeteaseMusic(songId, source)
+    if (unblockResult) {
+      // 处理酷我音乐代理
+      if (unblockResult.url && unblockResult.url.includes('kuwo')) {
         const useProxy = process.env.ENABLE_PROXY || 'false'
-        var proxyUrl = useProxy === 'true' ? process.env.PROXY_URL + result.url : result.url
-      }
-      let url = Array.isArray(result) ? (result[0]?.url || result[0]) : (result.url || result)
-      if (url) {
-        return {
-          status: 200,
-          body: {
-            code: 200,
-            data: [
-              {
-                id: Number(query.id),
-                url,
-                type: 'flac',
-                level: query.level,
-                freeTrialInfo: 'null',
-                fee: 0,
-                proxyUrl: proxyUrl || '',
-              },
-            ],
-          },
-          cookie: [],
+        if (useProxy === 'true') {
+          unblockResult.proxyUrl = process.env.PROXY_URL + unblockResult.url
         }
       }
-    } catch (e) {
-      console.error('Error in unblockneteasemusic:', e)
+      
+      return {
+        status: 200,
+        body: {
+          code: 200,
+          data: [unblockResult],
+        },
+        cookie: [],
+      }
     }
     
-    logger.error('所有解灰方案都失败', query.id)
+    // 3. 所有解灰方案都失败
+    logger.error('所有解灰方案都失败', songId)
   }
+  
+  // 如果不启用解灰或解灰失败，回退到原始API
+  const data = {
+    ids: '[' + songId + ']',
+    level: level,
+    encodeType: 'flac',
+  }
+  
   if (data.level == 'sky') {
     data.immerseType = 'c51'
   }
+  
   return request(`/api/song/enhance/player/url/v1`, data, createOption(query))
 }
