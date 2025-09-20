@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>跨域请求测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .result {
+            background: #f5f5f5;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 3px;
+            white-space: pre-wrap;
+        }
+        button {
+            padding: 8px 16px;
+            margin: 5px;
+            cursor: pointer;
+        }
+        .error {
+            color: red;
+        }
+        .success {
+            color: green;
+        }
+    </style>
+</head>
+<body>
+    <h1>跨域请求测试页面</h1>
+    <p>此页面用于测试跨域请求时的 Cookie 处理</p>
+
+    <div class="section">
+        <h2>1. jQuery 请求 (带 withCredentials)</h2>
+        <button onclick="testJQuery()">测试 jQuery 请求</button>
+        <div id="jquery-result" class="result"></div>
+    </div>
+
+    <div class="section">
+        <h2>2. Axios 请求 (带 withCredentials)</h2>
+        <button onclick="testAxios()">测试 Axios 请求</button>
+        <div id="axios-result" class="result"></div>
+    </div>
+
+    <div class="section">
+        <h2>3. Fetch API 请求 (带 credentials: 'include')</h2>
+        <button onclick="testFetch()">测试 Fetch 请求</button>
+        <div id="fetch-result" class="result"></div>
+    </div>
+
+    <div class="section">
+        <h2>4. 手动传入 Cookie</h2>
+        <input type="text" id="manual-cookie" placeholder="输入 Cookie 值" style="width: 300px;">
+        <button onclick="testManualCookie()">测试手动 Cookie</button>
+        <div id="manual-result" class="result"></div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios@0.26.1/dist/axios.min.js"></script>
+
+    <script>
+        // 设置 API 基础 URL
+        const API_BASE = window.location.origin;
+
+        // jQuery 测试
+        function testJQuery() {
+            const resultDiv = document.getElementById('jquery-result');
+            resultDiv.textContent = '正在请求...';
+
+            $.ajax({
+                url: `${API_BASE}/login/status`,
+                method: 'POST',
+                xhrFields: {
+                    withCredentials: true  // 关键配置：发送 Cookie
+                },
+                data: {},
+                success: function(data) {
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = 'jQuery 请求成功:\n' + JSON.stringify(data, null, 2);
+                },
+                error: function(xhr, status, error) {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `jQuery 请求失败:\nStatus: ${xhr.status}\nError: ${error}\nResponse: ${xhr.responseText}`;
+                }
+            });
+        }
+
+        // Axios 测试
+        function testAxios() {
+            const resultDiv = document.getElementById('axios-result');
+            resultDiv.textContent = '正在请求...';
+
+            axios({
+                url: `${API_BASE}/login/status`,
+                method: 'POST',
+                withCredentials: true,  // 关键配置：发送 Cookie
+                data: {}
+            }).then(response => {
+                resultDiv.className = 'result success';
+                resultDiv.textContent = 'Axios 请求成功:\n' + JSON.stringify(response.data, null, 2);
+            }).catch(error => {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `Axios 请求失败:\nStatus: ${error.response?.status || 'N/A'}\nError: ${error.message}\nResponse: ${error.response?.data ? JSON.stringify(error.response.data, null, 2) : 'N/A'}`;
+            });
+        }
+
+        // Fetch API 测试
+        function testFetch() {
+            const resultDiv = document.getElementById('fetch-result');
+            resultDiv.textContent = '正在请求...';
+
+            fetch(`${API_BASE}/login/status`, {
+                method: 'POST',
+                credentials: 'include',  // 关键配置：发送 Cookie
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({})
+            }).then(response => {
+                return response.json().then(data => ({
+                    status: response.status,
+                    data: data
+                }));
+            }).then(result => {
+                if (result.status >= 200 && result.status < 300) {
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = 'Fetch 请求成功:\n' + JSON.stringify(result.data, null, 2);
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `Fetch 请求失败:\nStatus: ${result.status}\nResponse: ${JSON.stringify(result.data, null, 2)}`;
+                }
+            }).catch(error => {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `Fetch 请求失败:\nError: ${error.message}`;
+            });
+        }
+
+        // 手动 Cookie 测试
+        function testManualCookie() {
+            const resultDiv = document.getElementById('manual-result');
+            const cookieValue = document.getElementById('manual-cookie').value;
+            
+            if (!cookieValue) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = '请输入 Cookie 值';
+                return;
+            }
+
+            resultDiv.textContent = '正在请求...';
+
+            axios({
+                url: `${API_BASE}/login/status`,
+                method: 'POST',
+                data: {
+                    cookie: cookieValue  // 手动传入 Cookie
+                }
+            }).then(response => {
+                resultDiv.className = 'result success';
+                resultDiv.textContent = '手动 Cookie 请求成功:\n' + JSON.stringify(response.data, null, 2);
+            }).catch(error => {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `手动 Cookie 请求失败:\nStatus: ${error.response?.status || 'N/A'}\nError: ${error.message}\nResponse: ${error.response?.data ? JSON.stringify(error.response.data, null, 2) : 'N/A'}`;
+            });
+        }
+
+        // 页面加载时显示当前 Cookie
+        window.onload = function() {
+            console.log('当前页面 Cookie:', document.cookie);
+            if (document.cookie) {
+                console.log('检测到 Cookie，可以尝试自动请求测试');
+            } else {
+                console.log('未检测到 Cookie，需要先登录或手动输入 Cookie');
+            }
+        };
+    </script>
+</body>
+</html>
