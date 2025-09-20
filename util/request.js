@@ -17,6 +17,7 @@ const {
 } = require('./index')
 const { URLSearchParams, URL } = require('url')
 const { APP_CONF } = require('../util/config.json')
+const cookieManager = require('./cookie-manager.js')
 
 // 预先读取匿名token并缓存
 const anonymous_token = fs.readFileSync(
@@ -169,6 +170,35 @@ const createRequest = (uri, data, options) => {
     }
 
     let cookie = options.cookie || {}
+    
+    // 如果没有提供cookie，尝试从存储中获取
+    if (!cookie || (typeof cookie === 'object' && Object.keys(cookie).length === 0)) {
+      // 尝试从query参数中获取userId
+      const userId = data.userId || options.userId
+      if (userId) {
+        const storedCookieData = cookieManager.getCookie(userId)
+        if (storedCookieData && storedCookieData.cookieString) {
+          cookie = storedCookieData.cookieString
+          console.log(`[Request] Using stored cookie for user: ${userId}`)
+        }
+      } else {
+        // 如果没有指定userId，尝试获取最近使用的cookie
+        const allCookies = cookieManager.getAllCookies()
+        if (allCookies.length > 0) {
+          // 按最后使用时间排序，获取最近使用的cookie
+          const recentCookie = allCookies.sort((a, b) => 
+            new Date(b.lastUsed).getTime() - new Date(a.lastUsed).getTime()
+          )[0]
+          
+          const storedCookieData = cookieManager.getCookie(recentCookie.userId)
+          if (storedCookieData && storedCookieData.cookieString) {
+            cookie = storedCookieData.cookieString
+            console.log(`[Request] Using most recent cookie for user: ${recentCookie.userId}`)
+          }
+        }
+      }
+    }
+    
     if (typeof cookie === 'string') {
       cookie = cookieToJson(cookie)
     }

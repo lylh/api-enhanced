@@ -478,6 +478,80 @@ body {
 
 **接口地址 :** `/login/status`
 
+### Cookie 管理
+
+说明 : 以下接口用于管理用户登录 Cookie，支持保存、获取、删除和清理过期 Cookie
+
+#### 1. 获取 Cookie 列表
+
+说明 : 调用此接口可获取所有已保存的 Cookie 列表
+
+**接口地址 :** `/cookie/list`
+
+**调用例子 :** `/cookie/list`
+
+#### 2. 获取指定用户 Cookie
+
+说明 : 调用此接口可获取指定用户的 Cookie 信息
+
+**必选参数 :** `userId` : 用户ID
+
+**可选参数 :** `includeCookie` : 是否包含敏感 Cookie 信息，默认为 false
+
+**接口地址 :** `/cookie/get`
+
+**调用例子 :** `/cookie/get?userId=123456` 或 `/cookie/get?userId=123456&includeCookie=true`
+
+#### 3. 保存 Cookie
+
+说明 : 调用此接口可手动保存用户 Cookie 信息
+
+**必选参数 :** 
+`userId` : 用户ID
+`cookie` : Cookie 字符串
+`userInfo` : 用户信息对象
+
+**接口地址 :** `/cookie/save`
+
+**调用例子 :** 
+```
+POST /cookie/save
+{
+  "userId": "123456",
+  "cookie": "MUSIC_U=xxx; __csrf=xxx",
+  "userInfo": {
+    "nickname": "用户昵称",
+    "avatarUrl": "头像URL"
+  }
+}
+```
+
+#### 4. 删除 Cookie
+
+说明 : 调用此接口可删除指定用户的 Cookie
+
+**必选参数 :** `userId` : 用户ID
+
+**接口地址 :** `/cookie/delete`
+
+**调用例子 :** 
+```
+POST /cookie/delete
+{
+  "userId": "123456"
+}
+```
+
+#### 5. 清理过期 Cookie
+
+说明 : 调用此接口可清理指定天数前的过期 Cookie
+
+**可选参数 :** `maxAge` : 保留天数，默认为 30 天
+
+**接口地址 :** `/cookie/clean`
+
+**调用例子 :** `/cookie/clean` 或 `/cookie/clean?maxAge=7`
+
 ### 获取用户详情
 
 说明 : 登录后调用此接口 , 传入用户 id, 可以获取用户详情
