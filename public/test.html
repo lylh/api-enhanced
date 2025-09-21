@@ -70,42 +70,61 @@
     <script src="https://cdn.jsdelivr.net/npm/axios@0.26.1/dist/axios.min.js"></script>
 
     <script>
+        // 等待页面和jQuery加载完成
+        $(document).ready(function() {
+            console.log('jQuery loaded successfully');
+        });
+        
         // 设置 API 基础 URL
         const API_BASE = 'https://kele.160622.xyz:14000';
 
         // jQuery 测试
-        function testJQuery() {
+        window.testJQuery = function() {
+            if (typeof $ === 'undefined') {
+                alert('jQuery 未加载！');
+                return;
+            }
+            
             const resultDiv = document.getElementById('jquery-result');
             resultDiv.textContent = '正在请求...';
 
             $.ajax({
                 url: `${API_BASE}/login/status`,
-                method: 'POST',
+                method: 'GET',
                 xhrFields: {
-                    withCredentials: true  // 关键配置：发送 Cookie
+                    withCredentials: true
                 },
-                data: {},
-                success: function(data) {
+                crossDomain: true,  // 明确指定跨域
+                beforeSend: function(xhr) {
+                    console.log('jQuery 请求开始:', xhr);
+                },
+                success: function(data, textStatus, xhr) {
+                    console.log('jQuery 请求成功:', data, textStatus, xhr);
                     resultDiv.className = 'result success';
                     resultDiv.textContent = 'jQuery 请求成功:\n' + JSON.stringify(data, null, 2);
                 },
                 error: function(xhr, status, error) {
+                    console.log('jQuery 请求失败:', xhr, status, error);
+                    console.log('xhr.status:', xhr.status);
+                    console.log('xhr.statusText:', xhr.statusText);
+                    console.log('xhr.responseText:', xhr.responseText);
+                    console.log('xhr.getAllResponseHeaders():', xhr.getAllResponseHeaders());
+                    
                     resultDiv.className = 'result error';
-                    resultDiv.textContent = `jQuery 请求失败:\nStatus: ${xhr.status}\nError: ${error}\nResponse: ${xhr.responseText}`;
+                    resultDiv.textContent = `jQuery 请求失败:\nStatus: ${xhr.status}\nStatusText: ${xhr.statusText}\nError: ${error}\nResponse: ${xhr.responseText}`;
                 }
             });
-        }
+        };
 
         // Axios 测试
-        function testAxios() {
+        window.testAxios = function() {
             const resultDiv = document.getElementById('axios-result');
             resultDiv.textContent = '正在请求...';
 
             axios({
                 url: `${API_BASE}/login/status`,
-                method: 'POST',
-                withCredentials: true,  // 关键配置：发送 Cookie
-                data: {}
+                method: 'GET',  // 改为 GET 方法
+                withCredentials: true  // 关键配置：发送 Cookie
             }).then(response => {
                 resultDiv.className = 'result success';
                 resultDiv.textContent = 'Axios 请求成功:\n' + JSON.stringify(response.data, null, 2);
@@ -113,20 +132,16 @@
                 resultDiv.className = 'result error';
                 resultDiv.textContent = `Axios 请求失败:\nStatus: ${error.response?.status || 'N/A'}\nError: ${error.message}\nResponse: ${error.response?.data ? JSON.stringify(error.response.data, null, 2) : 'N/A'}`;
             });
-        }
+        };
 
         // Fetch API 测试
-        function testFetch() {
+        window.testFetch = function() {
             const resultDiv = document.getElementById('fetch-result');
             resultDiv.textContent = '正在请求...';
 
             fetch(`${API_BASE}/login/status`, {
-                method: 'POST',
-                credentials: 'include',  // 关键配置：发送 Cookie
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({})
+                method: 'GET',  // 改为 GET 方法
+                credentials: 'include'  // 关键配置：发送 Cookie
             }).then(response => {
                 return response.json().then(data => ({
                     status: response.status,
@@ -144,10 +159,10 @@
                 resultDiv.className = 'result error';
                 resultDiv.textContent = `Fetch 请求失败:\nError: ${error.message}`;
             });
-        }
+        };
 
         // 手动 Cookie 测试
-        function testManualCookie() {
+        window.testManualCookie = function() {
             const resultDiv = document.getElementById('manual-result');
             const cookieValue = document.getElementById('manual-cookie').value;
             
@@ -159,11 +174,14 @@
 
             resultDiv.textContent = '正在请求...';
 
+            // 使用你提供的完整Cookie字符串作为默认值
+            const fullCookie = cookieValue || '_SSID=HHmh92IzmttEAVnNVm4KWmmElUV-euET9872yJ-gTEg; did=e11r1FXH6cdbQSzGOETsYhyR7mDJT7PmJW-embSjKX--cGgkCMvHuLSus5dgPrPMjYpN8zvQL32Qkm2jd8C4Pw; _CrPoSt=cHJvdG9jb2w9aHR0cHM6OyBwb3J0PTE1MDAyOyBwYXRobmFtZT0vOw%3D%3D; stay_login=0; _gid=GA1.2.1357718637.1758380942; _ga=GA1.1.15940774.1758081136; _ga_MD3K4WETFE=GS2.1.s1758385160$o6$g1$t1758386088$j59$l0$h0; io=h7tKFfcBS-We8lGUAAAb; NMTID=00OH1R5y9WV2KaYuElLgd45C7mX3NUAAAGZag_9eA';
+
             axios({
                 url: `${API_BASE}/login/status`,
-                method: 'POST',
-                data: {
-                    cookie: cookieValue  // 手动传入 Cookie
+                method: 'GET',
+                headers: {
+                    'Cookie': fullCookie
                 }
             }).then(response => {
                 resultDiv.className = 'result success';
@@ -172,7 +190,7 @@
                 resultDiv.className = 'result error';
                 resultDiv.textContent = `手动 Cookie 请求失败:\nStatus: ${error.response?.status || 'N/A'}\nError: ${error.message}\nResponse: ${error.response?.data ? JSON.stringify(error.response.data, null, 2) : 'N/A'}`;
             });
-        }
+        };
 
         // 页面加载时显示当前 Cookie
         window.onload = function() {
