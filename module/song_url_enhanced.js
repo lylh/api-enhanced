@@ -6,16 +6,16 @@ const logger = require('../util/logger.js')
 const createOption = require('../util/option.js')
 
 // toubiec.cn API解灰函数 - 支持音质级别自动遍历
-async function getFromToubiec(songId, requestedLevel = 'jymaster') {
+async function getFromToubiec(songId, requestedLevel = 'lossless') {
   // 音质级别优先级列表（从高到低）
   const qualityLevels = [
     'jymaster',   // 超清母带(最高音质)
     'sky',        // 沉浸环绕声
     'jyeffect',   // 高清环绕声
-    'hires',      // Hi-Res
-    'lossless',   // 无损音质
     'exhigh',     // 极高音质
-    'standard'    // 标准音质
+    'standard',    // 标准音质
+    'hires',      // Hi-Res
+    'lossless'   // 无损音质
   ]
   
   // 从请求的音质级别开始，向下遍历
