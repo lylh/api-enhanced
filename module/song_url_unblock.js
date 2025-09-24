@@ -6,14 +6,14 @@ const createOption = require('../util/option.js')
 const logger = require('../util/logger.js')
 
 // toubiec.cn API解灰函数 - 支持音质级别自动遍历
-async function getFromToubiec(songId, requestedLevel = 'jymaster') {
+async function getFromToubiec(songId, requestedLevel = 'lossless') {
   // 音质级别优先级列表（从高到低）
   const qualityLevels = [
+    'lossless',   // 无损音质
+    'hires',      // Hi-Res
     'jymaster',   // 超清母带(最高音质)
     'sky',        // 沉浸环绕声
     'jyeffect',   // 高清环绕声
-    'hires',      // Hi-Res
-    'lossless',   // 无损音质
     'exhigh',     // 极高音质
     'standard'    // 标准音质
   ]
@@ -30,16 +30,17 @@ async function getFromToubiec(songId, requestedLevel = 'jymaster') {
     try {
       logger.info(`尝试toubiec.cn解灰 - 歌曲ID: ${songId}, 音质: ${currentLevel}`)
       
-      const response = await axios.get(`https://api.toubiec.cn/wyapi/getMusicUrl.php`, {
-        params: {
-          id: songId,
-          level: currentLevel
-        },
+      const response = await axios.post(`https://wyapi.toubiec.cn/api/music/url`, {
+        id: songId,
+        level: currentLevel
+      }, {
         headers: {
           'accept': '*/*',
           'accept-language': 'zh-CN,zh;q=0.9',
+          'content-type': 'application/json',
+          'origin': 'https://wyapi.toubiec.cn',
           'priority': 'u=1, i',
-          'referer': 'https://api.toubiec.cn/wyapi/Song.html',
+          'referer': 'https://wyapi.toubiec.cn/',
           'sec-ch-ua': '"Chromium";v="140", "Not=A?Brand";v="24", "Google Chrome";v="140"',
           'sec-ch-ua-mobile': '?0',
           'sec-ch-ua-platform': '"Windows"',

@@ -32,16 +32,17 @@ async function getFromToubiec(songId, requestedLevel = 'jymaster') {
     try {
       logger.info(`尝试toubiec.cn解灰 - 歌曲ID: ${songId}, 音质: ${currentLevel}`)
       
-      const response = await axios.get(`https://api.toubiec.cn/wyapi/getMusicUrl.php`, {
-        params: {
-          id: songId,
-          level: currentLevel
-        },
+      const response = await axios.post(`https://wyapi.toubiec.cn/api/music/url`, {
+        id: songId,
+        level: currentLevel
+      }, {
         headers: {
           'accept': '*/*',
           'accept-language': 'zh-CN,zh;q=0.9',
+          'content-type': 'application/json',
+          'origin': 'https://wyapi.toubiec.cn',
           'priority': 'u=1, i',
-          'referer': 'https://api.toubiec.cn/wyapi/Song.html',
+          'referer': 'https://wyapi.toubiec.cn/',
           'sec-ch-ua': '"Chromium";v="140", "Not=A?Brand";v="24", "Google Chrome";v="140"',
           'sec-ch-ua-mobile': '?0',
           'sec-ch-ua-platform': '"Windows"',
