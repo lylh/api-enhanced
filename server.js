@@ -234,9 +234,9 @@ async function consturctServer(moduleDefs) {
         
         if (requestOrigin && allowedOrigins.includes(requestOrigin)) {
           allowOrigin = requestOrigin
-        } else if (allowedOrigins.length > 0) {
-          // 如果没有匹配的origin，使用第一个配置的域名
-          allowOrigin = allowedOrigins[0]
+        } else {
+          // 如果没有匹配的origin，返回*以允许所有域名
+          allowOrigin = '*'
         }
       } else if (req.headers.origin) {
         allowOrigin = req.headers.origin
