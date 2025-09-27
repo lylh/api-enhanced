@@ -1,3 +1,11 @@
+<!--
+ * @Author: paner 328538688@qq.com
+ * @Date: 2025-09-21 10:36:27
+ * @LastEditors: paner 328538688@qq.com
+ * @LastEditTime: 2025-09-27 09:14:49
+ * @FilePath: \api-enhanced\public\qrlogin.html
+ * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
+-->
 <!DOCTYPE html>
 <html lang="zh">
 
@@ -27,22 +35,69 @@
       })
       document.querySelector('#qrImg').src = res2.data.data.qrimg
 
+      let expiredCount = 0
       timer = setInterval(async () => {
         const statusRes = await checkStatus(key)
-        if (statusRes.code === 800) {
-          alert('二维码已过期,请重新获取')
-          clearInterval(timer)
-        }
+        
+        // 登录成功，立即处理
         if (statusRes.code === 803) {
-          // 这一步会返回cookie
           clearInterval(timer)
           alert('授权登录成功')
-          await getLoginStatus(statusRes.cookie)
+          
+          // 设置浏览器cookie
+          setCookieToBrowser(statusRes.cookie)
+          
+          // 保存到localStorage作为备份
           localStorage.setItem('cookie', statusRes.cookie)
+          
+          // 获取登录状态
+          await getLoginStatus(statusRes.cookie)
+          return
+        }
+        
+        // 二维码过期处理 - 增加容错机制
+        if (statusRes.code === 800) {
+          expiredCount++
+          // 连续收到2次过期状态才真正认为过期，避免网络延迟导致的误判
+          if (expiredCount >= 2) {
+            alert('二维码已过期,请重新获取')
+            clearInterval(timer)
+          }
+        } else {
+          // 重置过期计数器
+          expiredCount = 0
+        }
+        
+        // 等待扫码状态
+        if (statusRes.code === 801) {
+          document.querySelector('#info').innerText = '等待扫码...'
+        }
+        
+        // 已扫码，等待确认
+        if (statusRes.code === 802) {
+          document.querySelector('#info').innerText = '已扫码，请在手机上确认登录'
         }
       }, 3000)
     }
     login()
+
+    // 设置浏览器cookie的函数
+    function setCookieToBrowser(cookieString) {
+      try {
+        // 解析cookie字符串
+        const cookies = cookieString.split(';')
+        cookies.forEach(cookie => {
+          const trimmedCookie = cookie.trim()
+          if (trimmedCookie) {
+            // 设置cookie到浏览器，添加路径和域名
+            document.cookie = `${trimmedCookie}; path=/; domain=${window.location.hostname}`
+          }
+        })
+        console.log('[QR Login] Browser cookies set successfully')
+      } catch (error) {
+        console.error('[QR Login] Failed to set browser cookies:', error)
+      }
+    }
 
     async function checkStatus(key) {
       const res = await axios({

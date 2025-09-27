@@ -9,13 +9,13 @@ const createOption = require('../util/option.js')
 async function getFromToubiec(songId, requestedLevel = 'lossless') {
   // 音质级别优先级列表（从高到低）
   const qualityLevels = [
-    'jymaster',   // 超清母带(最高音质)
-    'sky',        // 沉浸环绕声
-    'jyeffect',   // 高清环绕声
-    'exhigh',     // 极高音质
-    'standard',    // 标准音质
-    'hires',      // Hi-Res
-    'lossless'   // 无损音质
+    'jymaster',   // 超清母带(最高音质) - 5.7Mbps FLAC
+    'sky',        // 沉浸环绕声 - 2.3Mbps FLAC  
+    'jyeffect',   // 高清环绕声 - 3.0Mbps FLAC
+    'hires',      // Hi-Res - 962kbps FLAC
+    'lossless',   // 无损音质 - 962kbps FLAC
+    'exhigh',     // 极高音质 - 320kbps MP3
+    'standard'    // 标准音质 - 128kbps MP3
   ]
   
   // 从请求的音质级别开始，向下遍历
@@ -166,3 +166,4 @@ module.exports = async (query, request) => {
   
   return request(`/api/song/enhance/player/url/v1`, data, createOption(query))
 }
+

@@ -11,13 +11,13 @@ const createOption = require('../util/option.js')
 async function getFromToubiec(songId, requestedLevel = 'jymaster') {
   // 音质级别优先级列表（从高到低）
   const qualityLevels = [
-    'jymaster',   // 超清母带(最高音质)
-    'sky',        // 沉浸环绕声
-    'jyeffect',   // 高清环绕声
-    'exhigh',     // 极高音质
-    'standard',    // 标准音质
-    'hires',     // Hi-Res
-    'lossless'   // 无损音质
+    'jymaster',   // 超清母带(最高音质) - 5.7Mbps FLAC
+    'sky',        // 沉浸环绕声 - 2.3Mbps FLAC  
+    'jyeffect',   // 高清环绕声 - 3.0Mbps FLAC
+    'hires',      // Hi-Res - 962kbps FLAC
+    'lossless',   // 无损音质 - 962kbps FLAC
+    'exhigh',     // 极高音质 - 320kbps MP3
+    'standard'    // 标准音质 - 128kbps MP3
   ]
   
   // 从请求的音质级别开始，向下遍历
@@ -57,7 +57,16 @@ async function getFromToubiec(songId, requestedLevel = 'jymaster') {
       if (response.data && response.data.code === 200 && response.data.data && response.data.data.length > 0) {
         const songData = response.data.data[0]
         if (songData.url) {
-          logger.info(`toubiec.cn解灰成功 - 歌曲ID: ${songId}, 音质: ${currentLevel}`, songData)
+          // 获取歌曲详情用于日志显示
+          try {
+            const songDetailResponse = await axios.get(`https://music.163.com/api/v3/song/detail?ids=[${songId}]`)
+            const songName = songDetailResponse.data?.songs?.[0]?.name || '未知歌曲'
+            const artistName = songDetailResponse.data?.songs?.[0]?.ar?.[0]?.name || '未知艺术家'
+            logger.info(`toubiec.cn解灰成功! 歌曲: ${songName} - ${artistName} (ID: ${songId}), 音质: ${currentLevel}`)
+          } catch (detailError) {
+            logger.info(`toubiec.cn解灰成功 - 歌曲ID: ${songId}, 音质: ${currentLevel}`)
+          }
+          
           return {
             id: Number(songId),
             url: songData.url,
@@ -65,7 +74,7 @@ async function getFromToubiec(songId, requestedLevel = 'jymaster') {
             size: songData.size || 0,
             md5: songData.md5 || '',
             type: songData.url.includes('.flac') ? 'flac' : 'mp3',
-            level: currentLevel,
+            level: currentLevel,  // 返回实际获取到的音质级别
             freeTrialInfo: 'null',
             fee: 0,
             source: 'toubiec'
