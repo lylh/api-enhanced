@@ -225,10 +225,26 @@ async function consturctServer(moduleDefs) {
    */
   app.use((req, res, next) => {
     if (req.path !== '/' && !req.path.includes('.')) {
+      let allowOrigin = '*'
+      
+      // 如果配置了CORS_ALLOW_ORIGIN，则根据请求的origin动态返回匹配的域名
+      if (CORS_ALLOW_ORIGIN) {
+        const allowedOrigins = CORS_ALLOW_ORIGIN.split(',').map(origin => origin.trim())
+        const requestOrigin = req.headers.origin
+        
+        if (requestOrigin && allowedOrigins.includes(requestOrigin)) {
+          allowOrigin = requestOrigin
+        } else if (allowedOrigins.length > 0) {
+          // 如果没有匹配的origin，使用第一个配置的域名
+          allowOrigin = allowedOrigins[0]
+        }
+      } else if (req.headers.origin) {
+        allowOrigin = req.headers.origin
+      }
+      
       res.set({
         'Access-Control-Allow-Credentials': true,
-        'Access-Control-Allow-Origin':
-          CORS_ALLOW_ORIGIN || req.headers.origin || '*',
+        'Access-Control-Allow-Origin': allowOrigin,
         'Access-Control-Allow-Headers': 'X-Requested-With,Content-Type',
         'Access-Control-Allow-Methods': 'PUT,POST,GET,DELETE,OPTIONS',
         'Content-Type': 'application/json; charset=utf-8',
