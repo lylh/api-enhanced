@@ -75,6 +75,15 @@ class CookieManager {
         const cookieData = this.memoryCache.get(userId)
         // 更新最后使用时间
         cookieData.lastUsed = new Date().toISOString()
+        
+        // 同步更新到文件
+        try {
+          const filePath = this.getCookieFilePath(userId)
+          fs.writeFileSync(filePath, JSON.stringify(cookieData, null, 2), 'utf-8')
+        } catch (fileError) {
+          console.warn(`[CookieManager] Failed to update file for user ${userId}:`, fileError)
+        }
+        
         return cookieData
       }
 
@@ -133,19 +142,39 @@ class CookieManager {
     try {
       this.ensureCookieDir()
       const cookies = []
+      
+      // 首先从内存缓存获取
+      for (const [userId, cookieData] of this.memoryCache) {
+        cookies.push({
+          userId: cookieData.userId,
+          userInfo: cookieData.userInfo,
+          createdAt: cookieData.createdAt,
+          lastUsed: cookieData.lastUsed
+        })
+      }
+      
+      // 然后从文件系统获取（避免重复）
       const files = fs.readdirSync(this.cookieDir)
+      const memoryUserIds = new Set(this.memoryCache.keys())
       
       for (const file of files) {
         if (file.startsWith('cookie_') && file.endsWith('.json')) {
           try {
             const filePath = path.join(this.cookieDir, file)
             const cookieData = JSON.parse(fs.readFileSync(filePath, 'utf-8'))
-            cookies.push({
-              userId: cookieData.userId,
-              userInfo: cookieData.userInfo,
-              createdAt: cookieData.createdAt,
-              lastUsed: cookieData.lastUsed
-            })
+            
+            // 只添加内存中不存在的cookie
+            if (!memoryUserIds.has(cookieData.userId)) {
+              cookies.push({
+                userId: cookieData.userId,
+                userInfo: cookieData.userInfo,
+                createdAt: cookieData.createdAt,
+                lastUsed: cookieData.lastUsed
+              })
+              
+              // 同步到内存缓存
+              this.memoryCache.set(cookieData.userId, cookieData)
+            }
           } catch (error) {
             console.error(`[CookieManager] Failed to read cookie file ${file}:`, error)
           }

@@ -11,20 +11,21 @@ const { cookieToJson } = require('./util/index')
 const fileUpload = require('express-fileupload')
 const decode = require('safe-decode-uri-component')
 const logger = require('./util/logger.js')
+const createOption = require('./util/option.js')
 
 // toubiec.cn API解灰函数 - 支持音质级别自动遍历
 async function getFromToubiec(songId, requestedLevel = 'lossless') {
-  // 音质级别优先级列表（从高到低）
+  // 音质级别优先级列表（从高到低，按实际音质排序）
   const qualityLevels = [
-    'jymaster',   // 超清母带(最高音质)
-    'sky',        // 沉浸环绕声
-    'jyeffect',   // 高清环绕声
-    'exhigh',     // 极高音质
-    'standard',    // 标准音质
-    'hires',      // Hi-Res
-    'lossless'   // 无损音质
+    'jymaster',   // 超清母带(最高音质) - 5.7Mbps FLAC
+    'sky',        // 沉浸环绕声 - 2.3Mbps FLAC  
+    'jyeffect',   // 高清环绕声 - 3.0Mbps FLAC
+    'hires',      // Hi-Res - 962kbps FLAC
+    'lossless',   // 无损音质 - 962kbps FLAC
+    'exhigh',     // 极高音质 - 320kbps MP3
+    'standard'    // 标准音质 - 128kbps MP3
   ]
-  
+
   // 从请求的音质级别开始，向下遍历
   let startIndex = qualityLevels.indexOf(requestedLevel)
   if (startIndex === -1) {
@@ -224,10 +225,26 @@ async function consturctServer(moduleDefs) {
    */
   app.use((req, res, next) => {
     if (req.path !== '/' && !req.path.includes('.')) {
+      let allowOrigin = '*'
+      
+      // 如果配置了CORS_ALLOW_ORIGIN，则根据请求的origin动态返回匹配的域名
+      if (CORS_ALLOW_ORIGIN) {
+        const allowedOrigins = CORS_ALLOW_ORIGIN.split(',').map(origin => origin.trim())
+        const requestOrigin = req.headers.origin
+        
+        if (requestOrigin && allowedOrigins.includes(requestOrigin)) {
+          allowOrigin = requestOrigin
+        } else {
+          // 如果没有匹配的origin，返回*以允许所有域名
+          allowOrigin = '*'
+        }
+      } else if (req.headers.origin) {
+        allowOrigin = req.headers.origin
+      }
+      
       res.set({
         'Access-Control-Allow-Credentials': true,
-        'Access-Control-Allow-Origin':
-          CORS_ALLOW_ORIGIN || req.headers.origin || '*',
+        'Access-Control-Allow-Origin': allowOrigin,
         'Access-Control-Allow-Headers': 'X-Requested-With,Content-Type',
         'Access-Control-Allow-Methods': 'PUT,POST,GET,DELETE,OPTIONS',
         'Content-Type': 'application/json; charset=utf-8',
@@ -324,8 +341,54 @@ async function consturctServer(moduleDefs) {
           process.env.ENABLE_GENERAL_UNBLOCK === 'true'
         ) {
           const song = moduleResponse['body']['data'][0]
-            if (song.freeTrialInfo !== null || !song.url || [1, 4].includes(song.fee)) {
-              logger.info("开始增强解灰", req.query.id, "音质级别:", req.query.level)
+          logger.info(`[解灰检查] 歌曲ID: ${req.query.id}, freeTrialInfo: ${song.freeTrialInfo}, url存在: ${!!song.url}, fee: ${song.fee}`)
+          
+          // 优化解灰触发条件：
+          // 1. 有试听限制 (freeTrialInfo !== null)
+          // 2. 没有URL (!song.url)
+          // 3. 付费歌曲 ([1, 4].includes(song.fee))
+          // 4. 请求的音质级别高于返回的音质级别 (新增条件)
+          const requestedLevel = req.query.level || 'standard'
+          const returnedLevel = song.level || 'standard'
+          
+          // 定义音质级别优先级 (数值越高音质越好)
+          const qualityLevels = {
+            'standard': 1,
+            'higher': 2,
+            'exhigh': 3,
+            'lossless': 4,
+            'hires': 5,
+            'sky': 6,
+            'jyeffect': 7,
+            'jymaster': 8
+          }
+          
+          const requestedQuality = qualityLevels[requestedLevel] || 1
+          const returnedQuality = qualityLevels[returnedLevel] || 1
+          
+          const needsUnblock = song.freeTrialInfo !== null || !song.url || [1, 4].includes(song.fee) || 
+                              (requestedQuality > returnedQuality)
+          
+          if (needsUnblock) {
+              logger.info("开始增强解灰", req.query.id, "音质级别:", req.query.level, "返回音质:", returnedLevel)
+              
+              // 获取歌曲名称用于日志显示
+              let songName = '未知歌曲'
+              try {
+                const songDetailResponse = await request(`/api/v3/song/detail`, {
+                  c: `[{"id":${req.query.id}}]`
+                }, createOption(req.query, 'weapi'))
+                if (songDetailResponse && songDetailResponse.body && songDetailResponse.body.songs && songDetailResponse.body.songs.length > 0) {
+                  const songDetail = songDetailResponse.body.songs[0]
+                  songName = songDetail.name || '未知歌曲'
+                  if (songDetail.ar && songDetail.ar.length > 0) {
+                    const artistNames = songDetail.ar.map(artist => artist.name).join('、')
+                    songName = `${songDetail.name} - ${artistNames}`
+                  }
+                }
+              } catch (error) {
+                logger.warn("获取歌曲名称失败:", error.message)
+              }
               
               // 1. 首先尝试toubiec.cn API (最高优先级)
               const toubiecResult = await getFromToubiec(req.query.id, req.query.level)
@@ -335,9 +398,10 @@ async function consturctServer(moduleDefs) {
                 song.size = toubiecResult.size
                 song.md5 = toubiecResult.md5
                 song.type = toubiecResult.type
+                song.level = toubiecResult.level || req.query.level // 更新音质级别
                 song.freeTrialInfo = null
                 song.fee = 0
-                logger.info("toubiec.cn解灰成功!", req.query.id)
+                logger.info(`toubiec.cn解灰成功! 歌曲: ${songName} (ID: ${req.query.id})`)
               } else {
                 // 2. 如果toubiec.cn失败，尝试unblockneteasemusic
                 const match = require('@unblockneteasemusic/server')
@@ -347,9 +411,9 @@ async function consturctServer(moduleDefs) {
                 if (url) {
                   song.url = url
                   song.freeTrialInfo = 'null'
-                  logger.info("unblockneteasemusic解灰成功!")
+                  logger.info(`unblockneteasemusic解灰成功! 歌曲: ${songName} (ID: ${req.query.id})`)
                 } else {
-                  logger.error("所有解灰方案都失败", req.query.id)
+                  logger.error(`所有解灰方案都失败 歌曲: ${songName} (ID: ${req.query.id})`)
                 }
               }
           }
