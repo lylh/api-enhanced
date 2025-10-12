@@ -18,6 +18,11 @@
 <body>
   <img id="qrImg" />
   <div id="info" class="info"></div>
+  <div id="loginStatus" style="display: none;">
+    <h3>当前登录状态</h3>
+    <div id="userInfo"></div>
+    <button id="reLoginBtn" onclick="forceReLogin()">重新登录</button>
+  </div>
   <script src="https://fastly.jsdelivr.net/npm/axios@0.26.1/dist/axios.min.js
     "></script>
   <script>
@@ -25,7 +30,41 @@
       let timer
       let timestamp = Date.now()
       const cookie = localStorage.getItem('cookie')
-      getLoginStatus(cookie)
+      
+      // 先检查登录状态
+      const loginStatus = await getLoginStatus(cookie)
+      
+      // 如果已经登录且账号信息有效，显示登录状态和选择界面
+      if (loginStatus && loginStatus.data && loginStatus.data.account && loginStatus.data.account.id) {
+        showLoginStatus(loginStatus.data)
+        return
+      }
+      
+      // 显示二维码登录界面
+      showQRLogin()
+    }
+    
+    function showLoginStatus(userData) {
+      document.querySelector('#qrImg').style.display = 'none'
+      document.querySelector('#info').style.display = 'none'
+      document.querySelector('#loginStatus').style.display = 'block'
+      document.querySelector('#userInfo').innerText = `已登录用户: ${userData.profile.nickname}\nUID: ${userData.account.id}`
+    }
+    
+    function forceReLogin() {
+      // 清除本地存储的cookie
+      localStorage.removeItem('cookie')
+      // 显示二维码登录界面
+      showQRLogin()
+      // 隐藏登录状态界面
+      document.querySelector('#loginStatus').style.display = 'none'
+    }
+    
+    async function showQRLogin() {
+      document.querySelector('#qrImg').style.display = 'block'
+      document.querySelector('#info').style.display = 'block'
+      document.querySelector('#info').innerText = '正在生成二维码...'
+      
       const res = await axios({
         url: `/login/qr/key?timestamp=${Date.now()}`,
       })
@@ -51,7 +90,7 @@
           localStorage.setItem('cookie', statusRes.cookie)
           
           // 获取登录状态
-          await getLoginStatus(statusRes.cookie)
+          await getLoginStatus(statusRes.cookie, 'display')
           return
         }
         
@@ -106,19 +145,62 @@
       return res.data
     }
     async function getLoginStatus(cookie = '') {
-      const res = await axios({
-        url: `/login/status?timestamp=${Date.now()}&ua=pc`,
-        method: 'post',
-        data: {
-          cookie,
-        },
-      })
-      document.querySelector('#info').innerText = JSON.stringify(res.data, null, 2)
+      try {
+        const res = await axios({
+          url: `/login/status?timestamp=${Date.now()}&ua=pc`,
+          method: 'post',
+          data: {
+            cookie,
+          },
+        })
+        
+        // 如果不是在检查初始登录状态，则显示信息
+        if (arguments.length > 1 && arguments[1] === 'display') {
+          document.querySelector('#info').innerText = JSON.stringify(res.data, null, 2)
+        }
+        
+        return res.data
+      } catch (error) {
+        console.error('获取登录状态失败:', error)
+        return null
+      }
     }
   </script>
   <style>
     .info {
       white-space: pre;
+    }
+    
+    #loginStatus {
+      margin: 20px 0;
+      padding: 15px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      background-color: #f9f9f9;
+    }
+    
+    #loginStatus h3 {
+      margin-top: 0;
+      color: #333;
+    }
+    
+    #userInfo {
+      margin: 10px 0;
+      white-space: pre-line;
+      color: #666;
+    }
+    
+    #reLoginBtn {
+      padding: 8px 16px;
+      background-color: #1890ff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    
+    #reLoginBtn:hover {
+      background-color: #40a9ff;
     }
   </style>
 </body>
