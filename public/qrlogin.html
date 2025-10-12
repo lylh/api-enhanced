@@ -204,15 +204,42 @@
     // 设置浏览器cookie的函数
     function setCookieToBrowser(cookieString) {
       try {
+        console.log('[QR Login] Setting cookies:', cookieString)
+        
         // 解析cookie字符串
         const cookies = cookieString.split(';')
         cookies.forEach(cookie => {
           const trimmedCookie = cookie.trim()
+          if (trimmedCookie && !trimmedCookie.includes('=')) {
+            // 跳过无效的cookie片段
+            return
+          }
+          
           if (trimmedCookie) {
-            // 设置cookie到浏览器，添加路径和域名
-            document.cookie = `${trimmedCookie}; path=/; domain=${window.location.hostname}`
+            // 提取cookie名称和值
+            const [nameValue, ...attributes] = trimmedCookie.split(';')
+            const [name, value] = nameValue.split('=')
+            
+            if (name && value) {
+              // 设置cookie到浏览器，确保正确的格式
+              let cookieStr = `${name.trim()}=${value.trim()}; path=/`
+              
+              // 如果是HTTPS，添加Secure标志
+              if (window.location.protocol === 'https:') {
+                cookieStr += '; Secure'
+              }
+              
+              // 添加SameSite属性
+              cookieStr += '; SameSite=Lax'
+              
+              document.cookie = cookieStr
+              console.log('[QR Login] Set cookie:', cookieStr)
+            }
           }
         })
+        
+        // 验证cookie是否设置成功
+        console.log('[QR Login] Current document.cookie:', document.cookie)
         console.log('[QR Login] Browser cookies set successfully')
       } catch (error) {
         console.error('[QR Login] Failed to set browser cookies:', error)
@@ -258,13 +285,34 @@
      }
     async function getLoginStatus(cookie = '') {
       try {
-        const res = await axios({
+        // 如果没有传入cookie，尝试从localStorage获取
+        if (!cookie) {
+          cookie = localStorage.getItem('cookie') || ''
+        }
+        
+        console.log('[Login Status] Using cookie:', cookie ? 'Cookie present' : 'No cookie')
+        
+        const config = {
           url: `/login/status?timestamp=${Date.now()}&ua=pc`,
           method: 'post',
           data: {
             cookie,
           },
-        })
+          // 确保请求包含浏览器cookie
+          withCredentials: true,
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }
+        
+        // 如果有cookie，也添加到请求头中
+        if (cookie) {
+          config.headers['Cookie'] = cookie
+        }
+        
+        const res = await axios(config)
+        
+        console.log('[Login Status] Response:', res.data)
         
         // 如果不是在检查初始登录状态，则显示信息
         if (arguments.length > 1 && arguments[1] === 'display') {
