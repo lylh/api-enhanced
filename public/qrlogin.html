@@ -115,15 +115,24 @@
             return
           }
           
-          // 检查网络错误
-          if (statusRes.code === -1) {
+          // 处理网络错误（包括502代理服务器错误）
+          if (statusRes.code === -1 || statusRes.code === -2 || statusRes.code === -3 || statusRes.code === -4) {
             expiredCount++
-            console.warn('[QR Check] Network error, retry count:', expiredCount)
+            console.warn('[QR Check] Network/Server error, retry count:', expiredCount, 'Error type:', statusRes.message)
             
-            // 连续3次网络错误则认为需要重新生成
-            if (expiredCount >= 3) {
+            // 对于502错误，给出更明确的提示
+            if (statusRes.code === -2) {
+              document.querySelector('#info').innerText = '代理服务器连接异常，正在重试...'
+            } else if (statusRes.code === -4) {
+              document.querySelector('#info').innerText = '请求超时，正在重试...'
+            } else {
+              document.querySelector('#info').innerText = '网络连接异常，正在重试...'
+            }
+            
+            // 连续5次错误则认为需要重新生成（对于代理问题给更多重试机会）
+            if (expiredCount >= 5) {
               clearInterval(timer)
-              alert('网络连接异常，请重新获取二维码')
+              alert('网络连接持续异常，请重新获取二维码')
               setTimeout(() => {
                 showQRLogin()
               }, 1000)
@@ -211,7 +220,7 @@
       try {
         const res = await axios({
           url: `/login/qr/check?key=${key}&timestamp=${Date.now()}&ua=pc`,
-          timeout: 10000, // 10秒超时
+          timeout: 15000, // 增加到15秒超时
           headers: {
             'Cache-Control': 'no-cache',
             'Pragma': 'no-cache'
@@ -221,6 +230,25 @@
         return res.data
       } catch (error) {
         console.error('[QR Check] Request failed:', error)
+        
+        // 特殊处理502 Bad Gateway错误
+        if (error.response && error.response.status === 502) {
+          console.warn('[QR Check] 502 Bad Gateway detected, proxy server issue')
+          return { code: -2, message: 'Proxy Server Error (502)' }
+        }
+        
+        // 处理其他HTTP错误
+        if (error.response) {
+          console.error('[QR Check] HTTP Error:', error.response.status, error.response.statusText)
+          return { code: -3, message: `HTTP Error: ${error.response.status}` }
+        }
+        
+        // 处理网络超时或连接错误
+        if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+          console.error('[QR Check] Request timeout')
+          return { code: -4, message: 'Request Timeout' }
+        }
+        
         // 返回一个表示网络错误的状态
         return { code: -1, message: 'Network Error' }
       }
