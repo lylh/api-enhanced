@@ -6,8 +6,6 @@ LABEL maintainer="netease-music-api"
 LABEL description="网易云音乐 API 服务"
 
 # 安装必要的系统依赖
-# 1. 添加 wget 以支持 HEALTHCHECK
-# 2. 只保留 tini 作为 init 系统
 RUN apk add --no-cache \
     tini \
     wget \
@@ -21,14 +19,13 @@ ENV NODE_ENV=production \
 # 创建应用目录
 WORKDIR /app
 
-# 【修改点 1】只复制 package.json 和 package-lock.json
-# 不再依赖 yarn.lock，统一使用 npm
+# 复制 package 文件
 COPY package*.json ./
 
-# 【修改点 2】使用 npm ci 替代 yarn install
-# npm ci 是为 CI/CD 环境设计的，速度更快，依赖更严格
-# --only=production 只安装生产依赖
-RUN npm ci --only=production && npm cache clean --force
+# 【修改点】使用 --omit=dev 和 --ignore-scripts
+# --omit=dev: 只安装生产依赖
+# --ignore-scripts: 忽略 prepare 等生命周期脚本，避免因缺少 devDependencies 而报错
+RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 
 # 创建非 root 用户
 RUN addgroup -g 1001 -S nodejs \
@@ -47,7 +44,7 @@ USER netease
 # 暴露端口
 EXPOSE 3000
 
-# 健康检查 (现在 wget 可用)
+# 健康检查
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:3000 || exit 1
 
