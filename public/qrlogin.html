@@ -122,11 +122,13 @@
             
             // 对于502错误，给出更明确的提示
             if (statusRes.code === -2) {
-              document.querySelector('#info').innerText = '代理服务器连接异常，正在重试...'
+              document.querySelector('#info').innerText = `代理服务器异常，开始重试... (${expiredCount}/5)`
             } else if (statusRes.code === -4) {
-              document.querySelector('#info').innerText = '请求超时，正在重试...'
+              document.querySelector('#info').innerText = `请求超时，开始重试... (${expiredCount}/5)`
+            } else if (statusRes.code === -3) {
+              document.querySelector('#info').innerText = `服务器错误，开始重试... (${expiredCount}/5)`
             } else {
-              document.querySelector('#info').innerText = '网络连接异常，正在重试...'
+              document.querySelector('#info').innerText = `网络异常，开始重试... (${expiredCount}/5)`
             }
             
             // 连续5次错误则认为需要重新生成（对于代理问题给更多重试机会）
