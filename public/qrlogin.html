@@ -65,58 +65,127 @@
       document.querySelector('#info').style.display = 'block'
       document.querySelector('#info').innerText = '正在生成二维码...'
       
-      const res = await axios({
-        url: `/login/qr/key?timestamp=${Date.now()}`,
-      })
-      const key = res.data.data.unikey
-      const res2 = await axios({
-        url: `/login/qr/create?key=${key}&qrimg=true&timestamp=${Date.now()}&ua=pc`,
-      })
-      document.querySelector('#qrImg').src = res2.data.data.qrimg
-
-      let expiredCount = 0
-      timer = setInterval(async () => {
-        const statusRes = await checkStatus(key)
-        
-        // 登录成功，立即处理
-        if (statusRes.code === 803) {
-          clearInterval(timer)
-          alert('授权登录成功')
-          
-          // 设置浏览器cookie
-          setCookieToBrowser(statusRes.cookie)
-          
-          // 保存到localStorage作为备份
-          localStorage.setItem('cookie', statusRes.cookie)
-          
-          // 获取登录状态
-          await getLoginStatus(statusRes.cookie, 'display')
-          return
-        }
-        
-        // 二维码过期处理 - 增加容错机制
-        if (statusRes.code === 800) {
-          expiredCount++
-          // 连续收到2次过期状态才真正认为过期，避免网络延迟导致的误判
-          if (expiredCount >= 2) {
-            alert('二维码已过期,请重新获取')
-            clearInterval(timer)
+      try {
+        const res = await axios({
+          url: `/login/qr/key?timestamp=${Date.now()}`,
+          timeout: 10000,
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
           }
-        } else {
-          // 重置过期计数器
-          expiredCount = 0
-        }
+        })
+        const key = res.data.data.unikey
+        console.log('[QR Login] Generated key:', key)
         
-        // 等待扫码状态
-        if (statusRes.code === 801) {
-          document.querySelector('#info').innerText = '等待扫码...'
-        }
+        const res2 = await axios({
+          url: `/login/qr/create?key=${key}&qrimg=true&timestamp=${Date.now()}&ua=pc`,
+          timeout: 10000,
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          }
+        })
+        console.log('[QR Login] QR code created successfully')
+        document.querySelector('#qrImg').src = res2.data.data.qrimg
+        document.querySelector('#info').innerText = '请使用网易云音乐APP扫描二维码登录'
+
+        let expiredCount = 0
+        let checkCount = 0
+        const maxChecks = 60 // 最多检查60次（3分钟）
         
-        // 已扫码，等待确认
-        if (statusRes.code === 802) {
-          document.querySelector('#info').innerText = '已扫码，请在手机上确认登录'
-        }
+        timer = setInterval(async () => {
+        checkCount++
+        
+        try {
+          const statusRes = await checkStatus(key)
+          
+          // 登录成功，立即处理
+          if (statusRes.code === 803) {
+            clearInterval(timer)
+            alert('授权登录成功')
+            
+            // 设置浏览器cookie
+            setCookieToBrowser(statusRes.cookie)
+            
+            // 保存到localStorage作为备份
+            localStorage.setItem('cookie', statusRes.cookie)
+            
+            // 获取登录状态
+            await getLoginStatus(statusRes.cookie, 'display')
+            return
+          }
+          
+          // 检查网络错误
+          if (statusRes.code === -1) {
+            expiredCount++
+            console.warn('[QR Check] Network error, retry count:', expiredCount)
+            
+            // 连续3次网络错误则认为需要重新生成
+            if (expiredCount >= 3) {
+              clearInterval(timer)
+              alert('网络连接异常，请重新获取二维码')
+              setTimeout(() => {
+                showQRLogin()
+              }, 1000)
+              return
+            }
+            return // 跳过本次检查，等待下次重试
+          }
+          
+          // 二维码过期处理
+          if (statusRes.code === 800) {
+            clearInterval(timer)
+            console.log('[QR Check] QR code expired, regenerating...')
+            alert('二维码已过期,请重新获取')
+            // 自动重新生成二维码
+            setTimeout(() => {
+              showQRLogin()
+            }, 1000)
+            return
+          }
+          
+          // 等待扫码状态
+          if (statusRes.code === 801) {
+            document.querySelector('#info').innerText = '等待扫码...'
+            expiredCount = 0 // 重置过期计数器
+          }
+          
+          // 已扫码，等待确认
+          if (statusRes.code === 802) {
+            document.querySelector('#info').innerText = '已扫码，请在手机上确认登录'
+            expiredCount = 0 // 重置过期计数器
+          }
+          
+          // 检查是否超时（3分钟无响应）
+          if (checkCount >= maxChecks) {
+            clearInterval(timer)
+            alert('二维码检查超时，请重新获取')
+            setTimeout(() => {
+              showQRLogin()
+            }, 1000)
+            return
+          }
+          
+        } catch (error) {
+           console.error('检查二维码状态时发生未预期错误:', error)
+           // 对于未预期的错误，也增加错误计数
+           expiredCount++
+           if (expiredCount >= 3) {
+             clearInterval(timer)
+             alert('系统异常，请重新获取二维码')
+             setTimeout(() => {
+               showQRLogin()
+             }, 1000)
+             return
+           }
+         }
       }, 3000)
+      
+      } catch (error) {
+        console.error('[QR Login] Failed to generate QR code:', error)
+        document.querySelector('#info').innerText = '生成二维码失败，请刷新页面重试'
+        alert('生成二维码失败，请检查网络连接后重试')
+      }
     }
     login()
 
@@ -139,10 +208,22 @@
     }
 
     async function checkStatus(key) {
-      const res = await axios({
-        url: `/login/qr/check?key=${key}&timestamp=${Date.now()}&ua=pc`,
-      })
-      return res.data
+      try {
+        const res = await axios({
+          url: `/login/qr/check?key=${key}&timestamp=${Date.now()}&ua=pc`,
+          timeout: 10000, // 10秒超时
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          }
+        })
+        console.log('[QR Check] Status response:', res.data)
+        return res.data
+      } catch (error) {
+        console.error('[QR Check] Request failed:', error)
+        // 返回一个表示网络错误的状态
+        return { code: -1, message: 'Network Error' }
+      }
     }
     async function getLoginStatus(cookie = '') {
       try {
