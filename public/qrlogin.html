@@ -29,15 +29,25 @@
     async function login() {
       let timer
       let timestamp = Date.now()
-      const cookie = localStorage.getItem('cookie')
+      
+      // 尝试多种方式获取cookie，确保一致性
+      let cookie = await getBestAvailableCookie()
       
       // 先检查登录状态
       const loginStatus = await getLoginStatus(cookie)
       
       // 如果已经登录且账号信息有效，显示登录状态和选择界面
-      if (loginStatus && loginStatus.data && loginStatus.data.account && loginStatus.data.account.id) {
+      if (loginStatus && loginStatus.data && loginStatus.data.account && loginStatus.data.account.id && !loginStatus.data.account.anonimousUser) {
         showLoginStatus(loginStatus.data)
         return
+      }
+      
+      // 如果cookie无效或用户是匿名用户，清理无效cookie并显示二维码登录
+      if (cookie) {
+        console.log('[Login] Cookie invalid or user anonymous, cleaning up...')
+        localStorage.removeItem('cookie')
+        // 清理浏览器cookie
+        clearBrowserCookies()
       }
       
       // 显示二维码登录界面
@@ -112,7 +122,24 @@
             localStorage.setItem('cookie', statusRes.cookie)
             
             // 获取登录状态
-            await getLoginStatus(statusRes.cookie, 'display')
+            const loginStatus = await getLoginStatus(statusRes.cookie, 'display')
+            
+            // 如果获取到登录状态，显示登录信息
+            if (loginStatus && loginStatus.data) {
+              showLoginStatus(loginStatus.data)
+              
+              // 同步保存到服务器（可选，用于多设备同步）
+              try {
+                await axios.post('/cookie/save', {
+                  cookie: statusRes.cookie,
+                  userId: loginStatus.data.account?.id
+                })
+                console.log('[QR Login] Cookie saved to server')
+              } catch (saveError) {
+                console.warn('[QR Login] Failed to save cookie to server:', saveError)
+              }
+            }
+            
             return
           }
           
@@ -201,6 +228,71 @@
     }
     login()
 
+    // 获取最佳可用cookie的函数
+    async function getBestAvailableCookie() {
+      try {
+        // 1. 首先尝试从浏览器cookie获取
+        const browserCookie = document.cookie
+        if (browserCookie && browserCookie.includes('MUSIC_U=')) {
+          console.log('[Cookie] Using browser cookie')
+          return browserCookie
+        }
+        
+        // 2. 从localStorage获取
+        const localStorageCookie = localStorage.getItem('cookie')
+        if (localStorageCookie && localStorageCookie.includes('MUSIC_U=')) {
+          console.log('[Cookie] Using localStorage cookie')
+          // 同步到浏览器cookie
+          setCookieToBrowser(localStorageCookie)
+          return localStorageCookie
+        }
+        
+        // 3. 尝试从服务器获取cookie列表，选择最新的
+        try {
+          const cookieListRes = await axios.get('/cookie/list')
+          if (cookieListRes.data && cookieListRes.data.data && cookieListRes.data.data.length > 0) {
+            // 按最后使用时间排序，选择最新的
+            const latestCookie = cookieListRes.data.data.sort((a, b) => 
+              new Date(b.lastUsed) - new Date(a.lastUsed)
+            )[0]
+            
+            if (latestCookie && latestCookie.cookieString) {
+              console.log('[Cookie] Using server cookie for user:', latestCookie.userId)
+              // 保存到localStorage和浏览器
+              localStorage.setItem('cookie', latestCookie.cookieString)
+              setCookieToBrowser(latestCookie.cookieString)
+              return latestCookie.cookieString
+            }
+          }
+        } catch (serverError) {
+          console.warn('[Cookie] Failed to fetch server cookies:', serverError)
+        }
+        
+        console.log('[Cookie] No valid cookie found')
+        return null
+      } catch (error) {
+        console.error('[Cookie] Error getting best available cookie:', error)
+        return null
+      }
+    }
+    
+    // 清理浏览器cookie的函数
+    function clearBrowserCookies() {
+      try {
+        const cookies = document.cookie.split(';')
+        cookies.forEach(cookie => {
+          const eqPos = cookie.indexOf('=')
+          const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim()
+          if (name) {
+            document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`
+            console.log('[Cookie] Cleared browser cookie:', name)
+          }
+        })
+      } catch (error) {
+        console.error('[Cookie] Failed to clear browser cookies:', error)
+      }
+    }
+
     // 设置浏览器cookie的函数
     function setCookieToBrowser(cookieString) {
       try {
@@ -283,45 +375,50 @@
          return { code: -1, message: 'Network Error' }
        }
      }
-    async function getLoginStatus(cookie = '') {
+    async function getLoginStatus(cookie, display) {
       try {
-        // 如果没有传入cookie，尝试从localStorage获取
+        // 如果没有提供cookie，尝试获取最佳可用cookie
         if (!cookie) {
-          cookie = localStorage.getItem('cookie') || ''
+          cookie = await getBestAvailableCookie()
+          console.log('[Login Status] No cookie provided, using best available:', !!cookie)
         }
         
-        console.log('[Login Status] Using cookie:', cookie ? 'Cookie present' : 'No cookie')
+        if (!cookie) {
+          console.log('[Login Status] No cookie available')
+          return null
+        }
         
-        const config = {
-          url: `/login/status?timestamp=${Date.now()}&ua=pc`,
-          method: 'post',
-          data: {
-            cookie,
-          },
-          // 确保请求包含浏览器cookie
-          withCredentials: true,
-          headers: {
-            'Content-Type': 'application/json'
+        console.log('[Login Status] Checking with cookie present:', !!cookie)
+        
+        const response = await axios.post('/login/status', 
+          { cookie: cookie },
+          {
+            withCredentials: true,
+            headers: {
+              'Content-Type': 'application/json',
+              ...(cookie && { 'Cookie': cookie })
+            }
+          }
+        )
+        
+        console.log('[Login Status] Response:', response.data)
+        
+        // 检查是否为匿名用户
+        if (response.data && response.data.data && response.data.data.account) {
+          const account = response.data.data.account
+          if (account.anonimousUser) {
+            console.log('[Login Status] Anonymous user detected, cookie may be invalid')
+            return null
           }
         }
         
-        // 如果有cookie，也添加到请求头中
-        if (cookie) {
-          config.headers['Cookie'] = cookie
+        if (display && response.data && response.data.data) {
+          showLoginStatus(response.data.data)
         }
         
-        const res = await axios(config)
-        
-        console.log('[Login Status] Response:', res.data)
-        
-        // 如果不是在检查初始登录状态，则显示信息
-        if (arguments.length > 1 && arguments[1] === 'display') {
-          document.querySelector('#info').innerText = JSON.stringify(res.data, null, 2)
-        }
-        
-        return res.data
+        return response.data
       } catch (error) {
-        console.error('获取登录状态失败:', error)
+        console.error('[Login Status] Error:', error)
         return null
       }
     }
