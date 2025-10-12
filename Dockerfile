@@ -21,7 +21,7 @@ WORKDIR /app
 
 # 复制 package 文件
 COPY package*.json ./
-COPY yarn.lock* ./
+COPY yarn.lock ./
 
 # 安装生产依赖
 RUN yarn install --production --frozen-lockfile --network-timeout=100000 \
