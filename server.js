@@ -249,15 +249,19 @@ async function consturctServer(moduleDefs) {
           process.env.ENABLE_GENERAL_UNBLOCK === 'true'
         ) {
           const song = moduleResponse.body.data[0]
-          if (
+          const shouldUnblock =
+            process.env.ENABLE_FLAC === 'true' ||
             song.freeTrialInfo !== null ||
             !song.url ||
             [1, 4].includes(song.fee)
-          ) {
+          if (shouldUnblock) {
             const {
               matchID,
             } = require('@neteasecloudmusicapienhanced/unblockmusic-utils')
-            logger.info('Starting unblock(uses general unblock):', req.query.id)
+            logger.info(
+              'Starting unblock(uses general unblock):',
+              req.query.id,
+            )
             const result = await matchID(req.query.id)
             song.url = result.data.url
             song.freeTrialInfo = 'null'
