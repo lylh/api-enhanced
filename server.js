@@ -210,7 +210,6 @@ async function consturctServer(moduleDefs) {
     'daily_signin.js': '/daily_signin',
     'fm_trash.js': '/fm_trash',
     'personal_fm.js': '/personal_fm',
-    'song_download_url_v1_302.js': '/song/url/v1/302',
   }
 
   /**
