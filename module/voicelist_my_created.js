@@ -3,7 +3,7 @@
 const createOption = require('../util/option.js')
 module.exports = (query, request) => {
   const data = {
-    limit: query.page || 20,
+    limit: query.limit || 20,
   }
   return request(
     `/api/social/my/created/voicelist/v1`,
