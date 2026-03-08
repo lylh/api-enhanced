@@ -1254,6 +1254,21 @@ tags: 歌单标签
 
 说明：`杜比全景声`音质需要设备支持，不同的设备可能会返回不同码率的 url。cookie 需要传入`os=pc`保证返回正常码率的 url。
 
+### 302到音乐 url - 新版
+
+说明 : 只允许传入单个`id`，会使用302重定向请求到目标url
+
+**必选参数 :** `id` : 音乐 id
+`level`: 播放音质等级, 分为 `standard` => `标准`,`higher` => `较高`, `exhigh`=>`极高`,
+`lossless`=>`无损`, `hires`=>`Hi-Res`, `jyeffect` => `高清环绕声`, `sky` => `沉浸环绕声`, `dolby` => `杜比全景声`, `jymaster` => `超清母带`
+`unblock`: 是否使用使用歌曲解锁, 分为`true`和`false`
+
+**接口地址 :** `/song/url/v1/302`
+
+**调用例子 :** `/song/url/v1/302?id=1969519579&level=exhigh`
+
+说明：`杜比全景声`音质需要设备支持，不同的设备可能会返回不同码率的 url。cookie 需要传入`os=pc`保证返回正常码率的 url。
+
 ### 音乐是否可用
 
 说明: 调用此接口,传入歌曲 id, 可获取音乐是否可用,返回 `{ success: true, message: 'ok' }` 或者 `{ success: false, message: '亲爱的,暂无版权' }`

@@ -221,7 +221,7 @@ async function consturctServer(moduleDefs) {
 
   for (const moduleDef of moduleDefinitions) {
     // Register the route.
-    app.use(moduleDef.route, async (req, res) => {
+    app.all(moduleDef.route, async (req, res) => {
       ;[req.query, req.body].forEach((item) => {
         // item may be undefined (some environments / middlewares).
         // Guard access to avoid "Cannot read properties of undefined (reading 'cookie')".
@@ -308,6 +308,11 @@ async function consturctServer(moduleDefs) {
             }
           }
         }
+        if (moduleResponse.redirectUrl) {
+          res.redirect(moduleResponse.status || 302, moduleResponse.redirectUrl)
+          return
+        }
+
         res.status(moduleResponse.status).send(moduleResponse.body)
       } catch (/** @type {*} */ moduleResponse) {
         logger.error(`${decode(req.originalUrl)}`, {
