@@ -3,7 +3,7 @@
 const createOption = require('../util/option.js')
 module.exports = (query, request) => {
   const data = {
-    threadId: query.threadId,
+    threadId: query.id,
     commentId: query.commentId,
     content: query.content,
     resourceType: '0',

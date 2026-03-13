@@ -783,7 +783,7 @@ tags: 歌单标签
 **必选参数 :** `uid` : 用户 id
 
 **可选参数 :**
-`limit` : 返回数量 , 默认为 30
+`limit` : 返回数量 , 默认为 20
 
 `offset` : 偏移数量，用于分页 ,如 :( 页数 -1)\*30, 其中 30 为 limit 的值 , 默认为 0
 
@@ -5111,25 +5111,37 @@ let data = encodeURIComponent(
 
 **必选参数 :**
 
-`threadId`: 评论线程 id, 可通过获取评论接口返回结果的`threadId`参数获取
-`commentId`: 回复评论 id, 若为回复评论则必填
+`id`: 歌曲id
 `content`: 评论内容
 
-**接口地址 :** `/comment/reply`
+**接口地址 :** `/comment/add`
 
-**调用例子 :** `/comment/reply?threadId=R_SO_4_2058263032&content=这首歌太棒了！`
+**调用例子 :** `/comment/add?id=2058263032&content=这首歌太棒了！`
 
 ### 删除评论
 
 说明 : 登录后调用此接口, 传入评论 id, 删除评论
 
 **必选参数 :**
-`commentId`: 评论 id
-`threadId`: 评论线程 id, 可通过获取评论接口返回结果的`threadId`参数获取
+`cid`: 评论 id
+`id`: 歌曲id
 
 **接口地址 :** `/comment/delete`
 
-**调用例子 :** `/comment/delete?threadId=R_SO_4_2058263032&commentId=123456789`
+**调用例子 :** `/comment/delete?threadId=2058263032&commentId=123456789`
+
+### 回复评论
+
+说明 : 登录后调用此接口, 传入歌曲 id, 回复内容等信息, 回复评论
+
+**必选参数 :**
+`id`: 歌曲id
+`commentId`: 被回复的评论 id
+`content`: 回复内容
+
+**接口地址 :** `/comment/reply`
+
+**调用例子 :** `/comment/reply?id=2058263032&commentId=123456789&content=我也觉得这首歌很棒！`
 
 ## 离线访问此文档
 
