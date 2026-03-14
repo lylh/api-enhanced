@@ -153,10 +153,6 @@ function getCorsAllowOrigin(allowOrigins, requestOrigin) {
     return requestOrigin
   }
 
-  if (!requestOrigin) {
-    return allowOrigins[0] || null
-  }
-
   return null
 }
 
@@ -185,11 +181,7 @@ async function constructServer(moduleDefs) {
         allowOrigins,
         req.headers.origin,
       )
-      const shouldSetVaryHeader =
-        allowOrigins &&
-        !allowOrigins.includes('*') &&
-        req.headers.origin &&
-        corsAllowOrigin
+      const shouldSetVaryHeader = corsAllowOrigin && corsAllowOrigin !== '*'
       res.set({
         'Access-Control-Allow-Credentials': true,
         ...(corsAllowOrigin
