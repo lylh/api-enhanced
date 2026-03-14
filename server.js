@@ -127,6 +127,39 @@ async function checkVersion() {
   })
 }
 
+function parseCorsAllowOrigins(corsAllowOrigin) {
+  if (!corsAllowOrigin) {
+    return null
+  }
+
+  const origins = corsAllowOrigin
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean)
+
+  return origins.length > 0 ? origins : null
+}
+
+function getCorsAllowOrigin(allowOrigins, requestOrigin) {
+  if (!allowOrigins) {
+    return requestOrigin || '*'
+  }
+
+  if (allowOrigins.includes('*')) {
+    return '*'
+  }
+
+  if (requestOrigin && allowOrigins.includes(requestOrigin)) {
+    return requestOrigin
+  }
+
+  if (!requestOrigin) {
+    return allowOrigins[0] || null
+  }
+
+  return null
+}
+
 /**
  * Construct the server of NCM API.
  *
@@ -136,6 +169,7 @@ async function checkVersion() {
 async function constructServer(moduleDefs) {
   const app = express()
   const { CORS_ALLOW_ORIGIN } = process.env
+  const allowOrigins = parseCorsAllowOrigins(CORS_ALLOW_ORIGIN)
   app.set('trust proxy', true)
 
   /**
@@ -147,10 +181,21 @@ async function constructServer(moduleDefs) {
    */
   app.use((req, res, next) => {
     if (req.path !== '/' && !req.path.includes('.')) {
+      const corsAllowOrigin = getCorsAllowOrigin(
+        allowOrigins,
+        req.headers.origin,
+      )
+      const shouldSetVaryHeader =
+        allowOrigins &&
+        !allowOrigins.includes('*') &&
+        req.headers.origin &&
+        corsAllowOrigin
       res.set({
         'Access-Control-Allow-Credentials': true,
-        'Access-Control-Allow-Origin':
-          CORS_ALLOW_ORIGIN || req.headers.origin || '*',
+        ...(corsAllowOrigin
+          ? { 'Access-Control-Allow-Origin': corsAllowOrigin }
+          : {}),
+        ...(shouldSetVaryHeader ? { Vary: 'Origin' } : {}),
         'Access-Control-Allow-Headers': 'X-Requested-With,Content-Type',
         'Access-Control-Allow-Methods': 'PUT,POST,GET,DELETE,OPTIONS',
         'Content-Type': 'application/json; charset=utf-8',
