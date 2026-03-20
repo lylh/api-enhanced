@@ -26,6 +26,9 @@ importers:
       express-fileupload:
         specifier: ^1.5.2
         version: 1.5.2
+      gzip:
+        specifier: ^0.1.0
+        version: 0.1.0
       music-metadata:
         specifier: ^11.12.3
         version: 11.12.3
@@ -1265,6 +1268,9 @@ packages:
 
   graceful-fs@4.2.11:
     resolution: {integrity: sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ==}
+
+  gzip@0.1.0:
+    resolution: {integrity: sha512-o2kq0ogD3MMAwDUt3G8y6EtFPqXDtpNI/zNWkZoOwYkjp/j8/Q9QLpVySPxYaQ521hPT8GoV9g1/WTkd7DM5Aw==}
 
   has-bigints@1.1.0:
     resolution: {integrity: sha512-R3pbpkcIqv2Pm3dUwgjclDRVmWpTJW2DcMzcIhEXEx1oh/CEMObMm3KLmRJOdvhM7o4uQBnwr8pzRK2sJWIqfg==}
@@ -4054,6 +4060,8 @@ snapshots:
   gopd@1.2.0: {}
 
   graceful-fs@4.2.11: {}
+
+  gzip@0.1.0: {}
 
   has-bigints@1.1.0: {}
 
