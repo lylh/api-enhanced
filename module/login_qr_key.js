@@ -5,7 +5,7 @@ module.exports = async (query, request) => {
   }
   const options = createOption({
     ...query,
-    randomCNIP: query.randomCNIP !== undefined ? query.randomCNIP : true,
+    randomCNIP: false,
   })
   const result = await request(
     `/api/login/qrcode/unikey`,

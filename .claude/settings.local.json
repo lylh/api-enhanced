@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//tmp/**)",
+      "Bash(ls -lh /d/code/netease-music/moo/api-enhanced/module/login*.js /d/code/netease-music/moo/api-enhanced/util/*.js)",
+      "Bash(wc:*)"
+    ]
+  }
+}
