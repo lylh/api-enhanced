@@ -1,10 +1,38 @@
-# 网易云音乐 API Enhanced
+<p align="center">
+  <img src="./public/docs/netease.png" alt="网易云音乐 API Enhanced Logo" width="120" height="120" />
+</p>
 
----
+<h1 align="center">NeteaseCloudMusicAPI Enhanced</h1>
+
+<p align="center">
+  <a href="https://www.npmjs.com/package/@neteasecloudmusicapienhanced/api">
+    <img src="https://img.shields.io/npm/v/@neteasecloudmusicapienhanced/api?style=flat-square" alt="NPM Version" />
+  </a>
+  <a href="https://www.npmjs.com/package/@neteasecloudmusicapienhanced/api">
+    <img src="https://img.shields.io/npm/dm/@neteasecloudmusicapienhanced/api?style=flat-square" alt="NPM Downloads" />
+  </a>
+  <a href="https://github.com/NeteaseCloudMusicApiEnhanced/api-enhanced">
+    <img src="https://img.shields.io/github/license/NeteaseCloudMusicApiEnhanced/api-enhanced?style=flat-square" alt="License" />
+  </a>
+  <a href="https://nodejs.org/">
+    <img src="https://img.shields.io/node/v/@neteasecloudmusicapienhanced/api?style=flat-square" alt="Node Version" />
+  </a>
+  <a href="https://hub.docker.com/r/moefurina/ncm-api">
+    <img src="https://img.shields.io/docker/v/moefurina/ncm-api?style=flat-square" alt="Docker Version" />
+  </a>
+  <a href="https://hub.docker.com/r/moefurina/ncm-api">
+    <img src="https://img.shields.io/docker/pulls/moefurina/ncm-api?style=flat-square" alt="Docker Pulls" />
+  </a>
+  <a href="https://www.typescriptlang.org/">
+    <img src="https://img.shields.io/badge/TypeScript-Ready-blue?style=flat-square&logo=typescript" alt="TypeScript" />
+  </a>
+</p>
+
+
 
 ## 项目简介
 
-本项目为网易云音乐第三方 Node.js API，基于停更的原版 API 持续维护，支持丰富的音乐相关接口，适合自建服务、二次开发和多平台部署(如果原版诈尸, 我会及时同步 or 归档)。
+网易云音乐第三方 Node.js API, 支持丰富的音乐相关接口，适合自建服务、二次开发和多平台部署(如果原版诈尸, 我会及时同步 or 归档)。
 
 > [!IMPORTANT]
 >
@@ -100,15 +128,15 @@ $ sudo docker run -d -p 3000:3000 ncm-api
 
 ## 3. 环境变量
 
-| 变量名                     | 默认值                               | 说明                                                                           |
-| -------------------------- | ------------------------------------ | ------------------------------------------------------------------------------ |
-| **CORS_ALLOW_ORIGIN**      | `*`                                  | 允许跨域请求的域名。若需要限制，请指定具体域名（例如 `https://example.com`）。 |
-| **ENABLE_PROXY**           | `false`                              | 是否启用反向代理功能。                                                         |
-| **PROXY_URL**              | `https://your-proxy-url.com/?proxy=` | 代理服务地址。仅当 `ENABLE_PROXY=true` 时生效。                                |
-| **ENABLE_GENERAL_UNBLOCK** | `true`                               | 是否启用全局解灰（推荐开启）。开启后所有歌曲都尝试自动解锁。                   |
-| **ENABLE_FLAC**            | `true`                               | 是否启用无损音质（FLAC）。                                                     |
-| **SELECT_MAX_BR**          | `false`                              | 启用无损音质时，是否选择最高码率音质。                                         |
-| **FOLLOW_SOURCE_ORDER**    | `true`                               | 是否严格按照音源列表顺序进行匹配。                                             |
+| 变量名                        | 默认值                                  | 说明                                                 |
+|----------------------------|--------------------------------------|----------------------------------------------------|
+| **CORS_ALLOW_ORIGIN**      | `*`                                  | 允许跨域请求的域名。可填写单个源，或使用逗号分隔多个源（例如 `https://a.com,https://b.com`）。 |
+| **ENABLE_PROXY**           | `false`                              | 是否启用反向代理功能。                                        |
+| **PROXY_URL**              | `https://your-proxy-url.com/?proxy=` | 代理服务地址。仅当 `ENABLE_PROXY=true` 时生效。                 |
+| **ENABLE_GENERAL_UNBLOCK** | `true`                               | 是否启用全局解灰（推荐开启）。开启后所有歌曲都尝试自动解锁。                     |
+| **ENABLE_FLAC**            | `true`                               | 是否启用无损音质（FLAC）。                                    |
+| **SELECT_MAX_BR**          | `false`                              | 启用无损音质时，是否选择最高码率音质。                                |
+| **FOLLOW_SOURCE_ORDER**    | `true`                               | 是否严格按照音源列表顺序进行匹配。                                  |
 
 ---
 
@@ -182,6 +210,7 @@ pnpm test
 ## 贡献与社区
 
 - 欢迎提交 PR、Issue 参与维护
+- 要贡献新接口, 请参考[这篇文章](https://www.focalors.ltd/post/how-to-contribute-ncm-api)
 
 ### 致谢
 
@@ -199,11 +228,12 @@ pnpm test
 
 ### SDK 生态
 
-| 语言   | 作者                                        | 地址                                                                                     | 类型   |
-| ------ | ------------------------------------------- | ---------------------------------------------------------------------------------------- | ------ |
+| 语言     | 作者                                          | 地址                                                                                       | 类型  |
+|--------|---------------------------------------------|------------------------------------------------------------------------------------------|-----|
 | Java   | [JackuXL](https://github.com/JackuXL)       | [NeteaseCloudMusicApi-SDK](https://github.com/JackuXL/NeteaseCloudMusicApi-SDK)          | 第三方 |
 | Java   | [1015770492](https://github.com/1015770492) | https://github.com/1015770492/yumbo-music-utils                                          | 第三方 |
-| Python | [盧瞳](https://github.com/2061360308)       | [NeteaseCloudMusic_PythonSDK](https://github.com/2061360308/NeteaseCloudMusic_PythonSDK) | 第三方 |
+| Python | [盧瞳](https://github.com/2061360308)         | [NeteaseCloudMusic_PythonSDK](https://github.com/2061360308/NeteaseCloudMusic_PythonSDK) | 第三方 |
+| Swift  | [Lincb522](https://github.com/Lincb522)  | [NeteaseCloudMusicApi-Swift](https://github.com/Lincb522/NeteaseCloudMusicAPI-Swift)     | 第三方 |
 
 
 ### 依赖此项目的优秀开源项目
@@ -211,6 +241,10 @@ pnpm test
 - [imsyy/splayer](https://github.com/imsyy/splayer)
 
 - [qier2222/YesPlayMusic](https://github.com/qier222/YesPlayMusic)
+
+- [MaigoLabs/amaoke.app](https://github.com/MaigoLabs/amaoke.app)
+
+- [Yueby/music-together](https://github.com/Yueby/music-together)
 
 ## License
 
