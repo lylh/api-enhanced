@@ -166,7 +166,7 @@
 
     async function checkStatus(key) {
       const res = await axios({
-        url: `/login/qr/check?key=${key}&timestamp=${Date.now()}&ua=pc`,
+        url: `/login/qr/check?key=${key}&timestamp=${Date.now()}&ua=pc&noCookie=true`,
       })
       return res.data
     }
@@ -174,7 +174,7 @@
     async function getLoginStatus(cookie = '') {
       try {
         const res = await axios({
-          url: `/login/status?timestamp=${Date.now()}&ua=pc`,
+          url: `/login/status?timestamp=${Date.now()}&ua=pc&noCookie=true`,
           method: 'post',
           data: {
             cookie,

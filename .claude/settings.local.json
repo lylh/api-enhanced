@@ -3,7 +3,10 @@
     "allow": [
       "Read(//tmp/**)",
       "Bash(ls -lh /d/code/netease-music/moo/api-enhanced/module/login*.js /d/code/netease-music/moo/api-enhanced/util/*.js)",
-      "Bash(wc:*)"
+      "Bash(wc:*)",
+      "Read(//etc/nginx/**)",
+      "Read(//usr/syno/share/**)",
+      "Read(//etc/**)"
     ]
   }
 }

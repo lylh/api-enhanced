@@ -20,7 +20,11 @@ module.exports = async (query, request) => {
       status: 200,
       body: {
         ...result.body,
-        cookie: result.cookie.join(';'),
+        // 只保留 key=value 部分，去掉 Path/HttpOnly/Expires 等属性
+        cookie: result.cookie
+          .map((c) => c.split(';')[0])
+          .filter((c) => c.includes('=') && !c.startsWith('__'))
+          .join(';'),
       },
       cookie: result.cookie,
     }
