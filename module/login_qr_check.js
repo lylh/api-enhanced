@@ -9,6 +9,7 @@ module.exports = async (query, request) => {
     const options = createOption({
       ...query,
       randomCNIP: false,
+      realIP: global.cnIp,
     })
     result = await request(
       `/api/login/qrcode/client/login`,
