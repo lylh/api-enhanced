@@ -4,11 +4,16 @@ module.exports = async (query, request) => {
     key: query.key,
     type: 3,
   }
+  let result
   try {
-    let result = await request(
+    const options = createOption({
+      ...query,
+      randomCNIP: query.randomCNIP !== undefined ? query.randomCNIP : true,
+    })
+    result = await request(
       `/api/login/qrcode/client/login`,
       data,
-      createOption(query),
+      options,
     )
     result = {
       status: 200,
@@ -23,7 +28,7 @@ module.exports = async (query, request) => {
     return {
       status: 200,
       body: {},
-      cookie: result.cookie,
+      cookie: result ? result.cookie : [],
     }
   }
 }

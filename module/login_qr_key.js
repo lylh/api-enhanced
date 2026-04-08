@@ -3,10 +3,14 @@ module.exports = async (query, request) => {
   const data = {
     type: 3,
   }
+  const options = createOption({
+    ...query,
+    randomCNIP: query.randomCNIP !== undefined ? query.randomCNIP : true,
+  })
   const result = await request(
     `/api/login/qrcode/unikey`,
     data,
-    createOption(query),
+    options,
   )
   return {
     status: 200,
